@@ -13,6 +13,8 @@ export class AssetLoader {
         (texture) => {
           texture.minFilter = THREE.NearestFilter;
           texture.magFilter = THREE.NearestFilter;
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
           this.textures.set(name, texture);
           resolve(texture);
         },

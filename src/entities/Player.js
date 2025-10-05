@@ -52,7 +52,7 @@ export const CHARACTER_STATS = {
 
 export class Player extends Entity {
   constructor({ x, y, character = 'ranger', playerId = 1, tint = 0x00ff7f, isGhost = false } = {}) {
-    super({ x, y, width: 52, height: 70 });
+    super({ x, y, width: 68, height: 96 });
     this.character = character;
     this.playerId = playerId;
     this.tint = tint;

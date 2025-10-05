@@ -24,8 +24,8 @@ const TOTAL_ROUNDS = 3;
 const CAMERA_WIDTH = 1600;
 
 const PLAYER_META = {
-  1: { tint: 0x45ff9a, label: 'Player 1' },
-  2: { tint: 0xff4f64, label: 'Player 2' }
+  1: { tint: 0x22c55e, label: 'Player 1' },
+  2: { tint: 0xef4444, label: 'Player 2' }
 };
 
 function clamp(value, min, max) {
@@ -36,8 +36,10 @@ export class GameManager {
   constructor({ canvas, uiRoot }) {
     this.canvas = canvas;
     this.uiRoot = uiRoot;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
+    this.renderer.setPixelRatio(window.devicePixelRatio ?? 1);
     this.renderer.setSize(canvas.width, canvas.height);
+    this.renderer.setClearColor(0xffffff, 1);
     this.scene = new THREE.Scene();
 
     const aspect = canvas.width / canvas.height;
@@ -45,6 +47,7 @@ export class GameManager {
     this.camera = new THREE.OrthographicCamera(0, CAMERA_WIDTH, height, 0, -1000, 1000);
     this.camera.position.set(CAMERA_WIDTH / 2, height / 2, 10);
     this.camera.lookAt(CAMERA_WIDTH / 2, height / 2, 0);
+    this.viewport = { width: CAMERA_WIDTH, height };
 
     this.clock = new THREE.Clock();
     this.accumulator = 0;
@@ -454,7 +457,7 @@ export class GameManager {
         });
         this.particles.spawnBurst({
           position: player.position,
-          color: player.playerId === 1 ? 0x5cff9b : 0xff6b6b,
+          color: player.playerId === 1 ? 0x22c55e : 0xef4444,
           count: 18,
           speed: 260,
           size: 24,
@@ -468,7 +471,7 @@ export class GameManager {
   }
 
   _attachParticles(projectile) {
-    const tint = projectile.ownerId === 1 ? 0x5cff9b : 0xff6b6b;
+    const tint = projectile.ownerId === 1 ? 0x22c55e : 0xef4444;
     this.particles.attachProjectile(projectile, {
       color: tint,
       rate:
@@ -509,12 +512,31 @@ export class GameManager {
     inputState.mouseWorldY = this.mouseVector.y;
   }
 
+  _updateCamera() {
+    if (!this.camera) return;
+    const levelWidth = this.level?.width ?? this.viewport.width;
+    const levelHeight = this.level?.height ?? this.viewport.height;
+    const halfW = this.viewport.width / 2;
+    const halfH = this.viewport.height / 2;
+    const minX = halfW;
+    const maxX = Math.max(halfW, levelWidth - halfW);
+    const minY = halfH;
+    const maxY = Math.max(halfH, levelHeight - halfH);
+    let targetX = this.currentPlayer?.position.x ?? levelWidth / 2;
+    let targetY = this.currentPlayer?.position.y ?? levelHeight / 2;
+    targetX = clamp(targetX, minX, maxX);
+    targetY = clamp(targetY, minY, maxY);
+    this.camera.position.set(targetX, targetY, this.camera.position.z);
+    this.camera.lookAt(targetX, targetY, 0);
+  }
+
   _render() {
     if (this.currentPlayer) {
       this.playerRenderer.update(this.currentPlayer);
     }
     this.ghosts.forEach((ghost) => this.playerRenderer.update(ghost));
     this.projectileRenderer.sync(this.projectiles);
+    this._updateCamera();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -552,9 +574,11 @@ export class GameManager {
   _beginTurn(playerId, character) {
     const roundIndex = this.state.round - 1;
     this.selections[playerId][roundIndex] = character;
+    const fallbackX = playerId === 1 ? 320 : (this.level?.width ?? CAMERA_WIDTH) - 320;
+    const fallbackY = (this.level?.height ?? this.viewport.height) - 280;
     const spawn = this.level.spawnPoints.find((point) => point.playerId === playerId) ?? {
-      x: playerId === 1 ? 200 : CAMERA_WIDTH - 200,
-      y: 680
+      x: fallbackX,
+      y: fallbackY
     };
 
     this.currentPlayer = new Player({
