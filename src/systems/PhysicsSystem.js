@@ -1,5 +1,14 @@
-const GRAVITY = 720;
-const FRICTION = 0.8;
+const GRAVITY = 760;
+const AIR_DRAG = 0.86;
+
+function copyRect(rect) {
+  return {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height
+  };
+}
 
 export class PhysicsSystem {
   constructor(level) {
@@ -9,11 +18,18 @@ export class PhysicsSystem {
   updatePlayer(player, input, deltaSeconds) {
     const stats = player.stats;
 
-    // Horizontal movement
-    let targetVelocityX = 0;
-    if (input.a) targetVelocityX -= stats.speed;
-    if (input.d) targetVelocityX += stats.speed;
-    player.velocity.x = targetVelocityX !== 0 ? targetVelocityX : player.velocity.x * FRICTION;
+    if (input.a) {
+      player.velocity.x -= stats.acceleration * deltaSeconds;
+    }
+    if (input.d) {
+      player.velocity.x += stats.acceleration * deltaSeconds;
+    }
+
+    const maxSpeed = stats.speed;
+    if (!input.a && !input.d) {
+      player.velocity.x *= AIR_DRAG;
+    }
+    player.velocity.x = Math.max(-maxSpeed, Math.min(maxSpeed, player.velocity.x));
 
     // Jetpack & gravity
     const usingJetpack = input.w && player.jetpackFuel > 0;
@@ -28,7 +44,7 @@ export class PhysicsSystem {
     const proposedX = player.position.x + player.velocity.x * deltaSeconds;
     const proposedY = player.position.y + player.velocity.y * deltaSeconds;
 
-    const collisions = [...this.level.platforms, ...this.level.obstacles];
+    const collisions = [...this.level.platforms.map(copyRect), ...this.level.obstacles.map(copyRect)];
 
     // Horizontal sweep
     const originalX = player.position.x;
@@ -85,6 +101,9 @@ export class PhysicsSystem {
     projectile.update(deltaSeconds);
     const rects = [...this.level.platforms, ...this.level.obstacles];
     if (rects.some((rect) => this._projectileHits(projectile, rect))) {
+      if (projectile.type === 'wizard-bomb') {
+        projectile.shouldExplode = true;
+      }
       projectile.isAlive = false;
     }
   }
@@ -108,5 +127,53 @@ export class PhysicsSystem {
       py + projectile.radius > rect.y &&
       py - projectile.radius < rect.y + rect.height
     );
+  }
+
+  resolveActorCollisions(actors) {
+    for (let i = 0; i < actors.length; i += 1) {
+      for (let j = i + 1; j < actors.length; j += 1) {
+        const a = actors[i];
+        const b = actors[j];
+        if (!a.isAlive || !b.isAlive) continue;
+        if (this._entitiesOverlap(a, b)) {
+          this._separateEntities(a, b);
+        }
+      }
+    }
+  }
+
+  _entitiesOverlap(a, b) {
+    return (
+      a.bounds.left < b.bounds.right &&
+      a.bounds.right > b.bounds.left &&
+      a.bounds.top < b.bounds.bottom &&
+      a.bounds.bottom > b.bounds.top
+    );
+  }
+
+  _separateEntities(a, b) {
+    const overlapX = Math.min(a.bounds.right, b.bounds.right) - Math.max(a.bounds.left, b.bounds.left);
+    const overlapY = Math.min(a.bounds.bottom, b.bounds.bottom) - Math.max(a.bounds.top, b.bounds.top);
+
+    if (overlapX <= 0 || overlapY <= 0) return;
+
+    if (overlapX < overlapY) {
+      const direction = a.position.x < b.position.x ? -1 : 1;
+      a.position.x += (overlapX / 2) * direction;
+      b.position.x -= (overlapX / 2) * direction;
+      a.velocity.x = 0;
+      b.velocity.x = 0;
+    } else {
+      const direction = a.position.y < b.position.y ? -1 : 1;
+      a.position.y += (overlapY / 2) * direction;
+      b.position.y -= (overlapY / 2) * direction;
+      if (direction < 0) {
+        a.velocity.y = Math.min(0, a.velocity.y);
+        b.velocity.y = Math.max(0, b.velocity.y);
+      } else {
+        a.velocity.y = Math.max(0, a.velocity.y);
+        b.velocity.y = Math.min(0, b.velocity.y);
+      }
+    }
   }
 }
