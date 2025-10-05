@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class AssetLoader {
   constructor() {
     this.textures = new Map();
