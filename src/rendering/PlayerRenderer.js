@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 
-const SPRITE_WIDTH = 128;
-const SPRITE_HEIGHT = 176;
 
 export class PlayerRenderer {
   constructor(scene, assetLoader) {
