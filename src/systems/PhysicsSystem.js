@@ -1,5 +1,6 @@
 const GRAVITY = 760;
 const AIR_DRAG = 0.86;
+const GROUND_FRICTION = 0.72;
 
 function copyRect(rect) {
   return {
@@ -27,7 +28,8 @@ export class PhysicsSystem {
 
     const maxSpeed = stats.speed;
     if (!input.a && !input.d) {
-      player.velocity.x *= AIR_DRAG;
+      const drag = player.isGrounded ? GROUND_FRICTION : AIR_DRAG;
+      player.velocity.x *= drag;
     }
     player.velocity.x = Math.max(-maxSpeed, Math.min(maxSpeed, player.velocity.x));
 
@@ -47,48 +49,52 @@ export class PhysicsSystem {
     const collisions = [...this.level.platforms.map(copyRect), ...this.level.obstacles.map(copyRect)];
 
     // Horizontal sweep
-    const originalX = player.position.x;
     player.position.x = proposedX;
-    const horizontalCollision = collisions.find((rect) => this._intersects(player, rect));
-    if (horizontalCollision) {
+    let horizontalCollision = false;
+    for (const rect of collisions) {
+      if (!this._intersects(player, rect)) continue;
+      horizontalCollision = true;
       if (player.velocity.x > 0) {
-        player.position.x = horizontalCollision.x - player.width / 2;
+        player.position.x = rect.x - player.width / 2 - 0.01;
       } else if (player.velocity.x < 0) {
-        player.position.x = horizontalCollision.x + horizontalCollision.width + player.width / 2;
+        player.position.x = rect.x + rect.width + player.width / 2 + 0.01;
       }
       player.velocity.x = 0;
+      break;
     }
 
     // Vertical sweep
-    const originalY = player.position.y;
     player.position.y = proposedY;
     let grounded = false;
-    const verticalCollision = collisions.find((rect) => this._intersects(player, rect));
-    if (verticalCollision) {
+    let verticalCollision = false;
+    for (const rect of collisions) {
+      if (!this._intersects(player, rect)) continue;
+      verticalCollision = true;
       if (player.velocity.y > 0) {
-        player.position.y = verticalCollision.y - player.height / 2;
+        player.position.y = rect.y - player.height / 2 - 0.01;
         grounded = true;
       } else if (player.velocity.y < 0) {
-        player.position.y = verticalCollision.y + verticalCollision.height + player.height / 2;
+        player.position.y = rect.y + rect.height + player.height / 2 + 0.01;
       }
       player.velocity.y = 0;
+      break;
     }
 
     if (grounded && !usingJetpack) {
       player.jetpackFuel = Math.min(player.maxJetpackFuel, player.jetpackFuel + stats.jetpackRegen * deltaSeconds);
     }
 
-    if (!horizontalCollision && !verticalCollision) {
+    if (!horizontalCollision) {
       player.position.x = proposedX;
-      player.position.y = proposedY;
-    } else {
-      if (!horizontalCollision) {
-        player.position.x = proposedX;
-      }
-      if (!verticalCollision) {
-        player.position.y = proposedY;
-      }
     }
+    if (!verticalCollision) {
+      player.position.y = proposedY;
+    }
+
+    player.position.x = Math.max(player.width / 2, Math.min(this.level.width - player.width / 2, player.position.x));
+    player.position.y = Math.max(player.height / 2, Math.min(this.level.height - player.height / 2, player.position.y));
+
+    player.isGrounded = grounded;
 
     if (input.mouseX !== undefined) {
       player.updateFacing(input.mouseWorldX ?? player.position.x);

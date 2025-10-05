@@ -67,6 +67,7 @@ export class Player extends Entity {
     this.invulnerableTime = 0;
     this.damageSources = new Map();
     this.shootTimer = 0;
+    this.isGrounded = false;
   }
 
   updateFacing(targetX) {
@@ -104,6 +105,7 @@ export class Player extends Entity {
     this.isAlive = true;
     this.invulnerableTime = 0;
     this.damageSources.clear();
+    this.isGrounded = false;
   }
 
   takeDamage(amount, { sourcePlayerId = null, sourceId = null } = {}) {
