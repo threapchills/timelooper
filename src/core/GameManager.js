@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { InputManager } from './InputManager.js';
 import { LevelGenerator } from '../systems/LevelGenerator.js';
 import { PhysicsSystem } from '../systems/PhysicsSystem.js';

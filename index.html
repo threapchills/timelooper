@@ -286,7 +286,13 @@
       <canvas id="game-canvas" width="1600" height="900"></canvas>
       <div id="ui-overlay"></div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js" integrity="sha512-hR6UutN7fa7b8ns/BKeShnASp0VhAO9p1A4Q2FZrEqVgYwsGgoU8gXZAZcUc6y1mx7D/84izoGXYp5IouBZh7g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js"
+        }
+      }
+    </script>
     <script type="module" src="src/main.js"></script>
   </body>
 </html>

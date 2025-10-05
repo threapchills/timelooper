@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 class Particle {
   constructor(scene, { position, velocity, color, lifetime, size, z = 2, opacity = 1 }) {
     this.scene = scene;

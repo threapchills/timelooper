@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class PlayerRenderer {
   constructor(scene, assetLoader) {
     this.scene = scene;
