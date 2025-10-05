@@ -16,15 +16,47 @@ export class ProjectileRenderer {
     projectiles.forEach((projectile) => {
       if (!projectile.isAlive) return;
       if (!this.projectileMeshes.has(projectile)) {
-        const geometry = new THREE.CircleGeometry(projectile.radius, 12);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffda66 });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(projectile.position.x, projectile.position.y, 1);
+        const mesh = this._createMesh(projectile);
         this.scene.add(mesh);
         this.projectileMeshes.set(projectile, mesh);
       }
       const mesh = this.projectileMeshes.get(projectile);
       mesh.position.set(projectile.position.x, projectile.position.y, 1);
+      if (projectile.type === 'warrior-slash') {
+        mesh.rotation.z = projectile.facingAngle ?? 0;
+      }
     });
+  }
+
+  _createMesh(projectile) {
+    let geometry;
+    let materialColor = projectile.color ?? 0xffffff;
+    switch (projectile.type) {
+      case 'wizard-bomb':
+        geometry = new THREE.CircleGeometry(projectile.radius, 16);
+        break;
+      case 'warrior-slash':
+        geometry = new THREE.PlaneGeometry(projectile.width, projectile.height);
+        materialColor = 0xffb347;
+        break;
+      default:
+        geometry = new THREE.CircleGeometry(projectile.radius, 10);
+    }
+
+    if (projectile.ownerId === 2) {
+      materialColor = 0xff4f64;
+    } else if (projectile.ownerId === 1) {
+      materialColor = 0x45ff9a;
+    }
+
+    const material = new THREE.MeshBasicMaterial({
+      color: materialColor,
+      transparent: true,
+      opacity: projectile.type === 'warrior-slash' ? 0.7 : 1,
+      blending: projectile.type === 'warrior-slash' ? THREE.AdditiveBlending : THREE.NormalBlending
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(projectile.position.x, projectile.position.y, 1);
+    return mesh;
   }
 }

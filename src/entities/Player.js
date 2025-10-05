@@ -1,49 +1,78 @@
 import { Entity } from './Entity.js';
 
-const CHARACTER_STATS = {
+export const CHARACTER_STATS = {
   warrior: {
-    speed: 160,
+    speed: 210,
+    acceleration: 760,
     maxHealth: 150,
     jetpackFuel: 6,
-    jetpackThrust: 420,
+    jetpackThrust: 520,
     jetpackRegen: 1,
-    projectileSpeed: 280,
-    cooldown: 0.8
+    cooldown: 0.8,
+    melee: {
+      damage: 50,
+      width: 90,
+      height: 70,
+      lifetime: 0.18
+    }
   },
   wizard: {
-    speed: 140,
+    speed: 180,
+    acceleration: 620,
     maxHealth: 100,
     jetpackFuel: 4,
-    jetpackThrust: 360,
-    jetpackRegen: 0.9,
-    projectileSpeed: 220,
-    cooldown: 2.5
+    jetpackThrust: 440,
+    jetpackRegen: 0.8,
+    cooldown: 2.5,
+    bomb: {
+      damageCenter: 50,
+      damageOuter: 25,
+      splashRadius: 120,
+      fuse: 2.5,
+      gravity: 520,
+      projectileSpeed: 420
+    }
   },
   ranger: {
-    speed: 220,
+    speed: 260,
+    acceleration: 820,
     maxHealth: 75,
     jetpackFuel: 8,
-    jetpackThrust: 460,
-    jetpackRegen: 1.1,
-    projectileSpeed: 400,
-    cooldown: 1.2
+    jetpackThrust: 560,
+    jetpackRegen: 1.2,
+    cooldown: 1.1,
+    shot: {
+      damage: 40,
+      speed: 720,
+      maxDistance: 900,
+      radius: 10
+    }
   }
 };
 
 export class Player extends Entity {
-  constructor({ x, y, character = 'ranger' } = {}) {
-    super({ x, y, width: 48, height: 64 });
+  constructor({ x, y, character = 'ranger', playerId = 1, tint = 0x00ff7f, isGhost = false } = {}) {
+    super({ x, y, width: 52, height: 70 });
     this.character = character;
+    this.playerId = playerId;
+    this.tint = tint;
     this.stats = CHARACTER_STATS[character];
     this.health = this.stats.maxHealth;
+    this.maxHealth = this.stats.maxHealth;
     this.jetpackFuel = this.stats.jetpackFuel;
     this.maxJetpackFuel = this.stats.jetpackFuel;
     this.facingDirection = 1;
     this.attackCooldown = 0;
+    this.isGhost = isGhost;
+    this.invulnerableTime = 0;
+    this.damageSources = new Map();
+    this.shootTimer = 0;
   }
 
   updateFacing(targetX) {
-    this.facingDirection = targetX >= this.position.x ? 1 : -1;
+    if (Number.isFinite(targetX)) {
+      this.facingDirection = targetX >= this.position.x ? 1 : -1;
+    }
   }
 
   canFire() {
@@ -52,13 +81,54 @@ export class Player extends Entity {
 
   tickCooldown(deltaSeconds) {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds);
+    if (this.invulnerableTime > 0) {
+      this.invulnerableTime = Math.max(0, this.invulnerableTime - deltaSeconds);
+    }
+    if (this.shootTimer > 0) {
+      this.shootTimer = Math.max(0, this.shootTimer - deltaSeconds);
+    }
   }
 
   triggerCooldown() {
     this.attackCooldown = this.stats.cooldown;
   }
+
+  resetForTurn({ x, y }) {
+    this.position.x = x;
+    this.position.y = y;
+    this.velocity.x = 0;
+    this.velocity.y = 0;
+    this.health = this.maxHealth;
+    this.jetpackFuel = this.maxJetpackFuel;
+    this.attackCooldown = 0;
+    this.isAlive = true;
+    this.invulnerableTime = 0;
+    this.damageSources.clear();
+  }
+
+  takeDamage(amount, { sourcePlayerId = null, sourceId = null } = {}) {
+    if (!this.isAlive || amount <= 0) return false;
+    this.health -= amount;
+    if (sourceId !== null) {
+      this.damageSources.set(sourceId, (this.damageSources.get(sourceId) || 0) + amount);
+    }
+    if (this.health <= 0) {
+      this.health = 0;
+      this.isAlive = false;
+      return { killed: true, killerId: sourcePlayerId };
+    }
+    return { killed: false };
+  }
+
+  triggerShootAnimation(duration = 0.32) {
+    this.shootTimer = duration;
+  }
 }
 
 export function getCharacterStats(character) {
   return CHARACTER_STATS[character];
+}
+
+export function listCharacterTypes() {
+  return Object.keys(CHARACTER_STATS);
 }
