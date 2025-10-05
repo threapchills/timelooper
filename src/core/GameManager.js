@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { InputManager } from './InputManager.js';
 import { LevelGenerator } from '../systems/LevelGenerator.js';
 import { PhysicsSystem } from '../systems/PhysicsSystem.js';
@@ -23,8 +24,8 @@ const TOTAL_ROUNDS = 3;
 const CAMERA_WIDTH = 1600;
 
 const PLAYER_META = {
-  1: { tint: 0x45ff9a, label: 'Player 1' },
-  2: { tint: 0xff4f64, label: 'Player 2' }
+  1: { tint: 0x22c55e, label: 'Player 1' },
+  2: { tint: 0xef4444, label: 'Player 2' }
 };
 
 function clamp(value, min, max) {
@@ -35,8 +36,10 @@ export class GameManager {
   constructor({ canvas, uiRoot }) {
     this.canvas = canvas;
     this.uiRoot = uiRoot;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
+    this.renderer.setPixelRatio(window.devicePixelRatio ?? 1);
     this.renderer.setSize(canvas.width, canvas.height);
+    this.renderer.setClearColor(0xffffff, 1);
     this.scene = new THREE.Scene();
 
     const aspect = canvas.width / canvas.height;
@@ -44,6 +47,7 @@ export class GameManager {
     this.camera = new THREE.OrthographicCamera(0, CAMERA_WIDTH, height, 0, -1000, 1000);
     this.camera.position.set(CAMERA_WIDTH / 2, height / 2, 10);
     this.camera.lookAt(CAMERA_WIDTH / 2, height / 2, 0);
+    this.viewport = { width: CAMERA_WIDTH, height };
 
     this.clock = new THREE.Clock();
     this.accumulator = 0;
@@ -289,11 +293,23 @@ export class GameManager {
     projectile.exploded = true;
     this.particles.spawnBurst({
       position: projectile.position,
-      color: projectile.ownerId === 1 ? 0x3cffaa : 0xff6b7d,
-      count: 36,
-      speed: 520,
-      size: 32,
-      lifetime: 1.2
+      colors: [
+        projectile.ownerId === 1 ? 0x3cffaa : 0xff6b7d,
+        projectile.ownerId === 1 ? 0x60f7ff : 0xff9a62,
+        projectile.ownerId === 1 ? 0xa855f7 : 0xffd166
+      ],
+      count: 48,
+      speed: 560,
+      size: 34,
+      lifetime: 1.4,
+      opacity: 0.95
+    });
+    this.particles.spawnShockwave({
+      position: projectile.position,
+      color: projectile.ownerId === 1 ? 0x74f5ff : 0xff8b94,
+      radius: projectile.splashRadius * 1.2,
+      lifetime: 0.75,
+      opacity: 0.6
     });
 
     const actors = [this.currentPlayer, ...this.ghosts];
@@ -319,6 +335,25 @@ export class GameManager {
     if (killerId) {
       const key = killerId === 1 ? 'player1' : 'player2';
       this.scores[key] += 1;
+    }
+    if (target?.position) {
+      const burstColor = killerId === 1 ? [0x5cffc8, 0x22d3ee, 0xc084fc] : [0xff8181, 0xffb347, 0xffd5a5];
+      this.particles.spawnShockwave({
+        position: { ...target.position },
+        color: killerId === 1 ? 0x8bffdd : 0xff9ea1,
+        radius: 240,
+        lifetime: 0.7,
+        opacity: 0.7
+      });
+      this.particles.spawnBurst({
+        position: { ...target.position },
+        colors: burstColor,
+        count: 42,
+        speed: 620,
+        size: 32,
+        lifetime: 1.1,
+        opacity: 0.9
+      });
     }
     if (target === this.currentPlayer) {
       this.finalHealth[target.playerId] = 0;
@@ -348,6 +383,15 @@ export class GameManager {
         });
         this.projectiles.push(shot);
         this._attachParticles(shot);
+        this.particles.spawnBurst({
+          position: spawn,
+          colors: [0x5cffc8, 0x22d3ee, 0xc084fc],
+          count: 14,
+          speed: 540,
+          lifetime: 0.35,
+          size: 18,
+          opacity: 0.85
+        });
         this.recordingSession.recordProjectile({
           type: 'ranger-shot',
           position: { x: shot.position.x, y: shot.position.y },
@@ -370,6 +414,15 @@ export class GameManager {
         });
         this.projectiles.push(bomb);
         this._attachParticles(bomb);
+        this.particles.spawnBurst({
+          position: spawn,
+          colors: [0xffb347, 0xff7096, 0xffe066],
+          count: 20,
+          speed: 480,
+          lifetime: 0.6,
+          size: 26,
+          opacity: 0.9
+        });
         this.recordingSession.recordProjectile({
           type: 'wizard-bomb',
           position: { x: bomb.position.x, y: bomb.position.y },
@@ -404,7 +457,7 @@ export class GameManager {
         });
         this.particles.spawnBurst({
           position: player.position,
-          color: player.playerId === 1 ? 0x5cff9b : 0xff6b6b,
+          color: player.playerId === 1 ? 0x22c55e : 0xef4444,
           count: 18,
           speed: 260,
           size: 24,
@@ -418,12 +471,17 @@ export class GameManager {
   }
 
   _attachParticles(projectile) {
-    const tint = projectile.ownerId === 1 ? 0x5cff9b : 0xff6b6b;
+    const tint = projectile.ownerId === 1 ? 0x22c55e : 0xef4444;
     this.particles.attachProjectile(projectile, {
       color: tint,
-      rate: projectile.type === 'ranger-shot' ? 1 / 120 : 1 / 40,
-      size: projectile.type === 'wizard-bomb' ? 26 : 16,
-      speed: projectile.type === 'wizard-bomb' ? 320 : 180
+      rate:
+        projectile.type === 'ranger-shot'
+          ? 1 / 80
+          : projectile.type === 'wizard-bomb'
+            ? 1 / 28
+            : 1 / 36,
+      size: projectile.type === 'wizard-bomb' ? 32 : 18,
+      speed: projectile.type === 'wizard-bomb' ? 360 : 220
     });
   }
 
@@ -454,12 +512,31 @@ export class GameManager {
     inputState.mouseWorldY = this.mouseVector.y;
   }
 
+  _updateCamera() {
+    if (!this.camera) return;
+    const levelWidth = this.level?.width ?? this.viewport.width;
+    const levelHeight = this.level?.height ?? this.viewport.height;
+    const halfW = this.viewport.width / 2;
+    const halfH = this.viewport.height / 2;
+    const minX = halfW;
+    const maxX = Math.max(halfW, levelWidth - halfW);
+    const minY = halfH;
+    const maxY = Math.max(halfH, levelHeight - halfH);
+    let targetX = this.currentPlayer?.position.x ?? levelWidth / 2;
+    let targetY = this.currentPlayer?.position.y ?? levelHeight / 2;
+    targetX = clamp(targetX, minX, maxX);
+    targetY = clamp(targetY, minY, maxY);
+    this.camera.position.set(targetX, targetY, this.camera.position.z);
+    this.camera.lookAt(targetX, targetY, 0);
+  }
+
   _render() {
     if (this.currentPlayer) {
       this.playerRenderer.update(this.currentPlayer);
     }
     this.ghosts.forEach((ghost) => this.playerRenderer.update(ghost));
     this.projectileRenderer.sync(this.projectiles);
+    this._updateCamera();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -497,9 +574,11 @@ export class GameManager {
   _beginTurn(playerId, character) {
     const roundIndex = this.state.round - 1;
     this.selections[playerId][roundIndex] = character;
+    const fallbackX = playerId === 1 ? 320 : (this.level?.width ?? CAMERA_WIDTH) - 320;
+    const fallbackY = (this.level?.height ?? this.viewport.height) - 280;
     const spawn = this.level.spawnPoints.find((point) => point.playerId === playerId) ?? {
-      x: playerId === 1 ? 200 : CAMERA_WIDTH - 200,
-      y: 680
+      x: fallbackX,
+      y: fallbackY
     };
 
     this.currentPlayer = new Player({

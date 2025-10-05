@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class ProjectileRenderer {
   constructor(scene) {
     this.scene = scene;
@@ -44,9 +46,9 @@ export class ProjectileRenderer {
     }
 
     if (projectile.ownerId === 2) {
-      materialColor = 0xff4f64;
+      materialColor = 0xef4444;
     } else if (projectile.ownerId === 1) {
-      materialColor = 0x45ff9a;
+      materialColor = 0x22c55e;
     }
 
     const material = new THREE.MeshBasicMaterial({
