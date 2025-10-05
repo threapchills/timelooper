@@ -1,0 +1,13 @@
+player1warrior.png
+    player1warriorshoot.png
+    player1wizard.png
+    player1wizardshoot.png
+    player1ranger.png
+    player1rangershoot.png
+    player2warrior.png
+    player2warriorshoot.png
+    player2wizard.png
+    player2wizardshoot.png
+    player2ranger.png
+    player2rangershoot.png
+    landblock.png  
